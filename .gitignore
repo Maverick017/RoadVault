@@ -1,0 +1,18 @@
+# Dependencies — these are huge and can always be reinstalled
+node_modules/
+
+# Environment files — these contain secrets like DB passwords
+.env
+.env.local
+
+# OS junk files
+.DS_Store
+Thumbs.db
+
+# Uploaded images (too large for git, handled separately)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Build output
+dist/
+build/
