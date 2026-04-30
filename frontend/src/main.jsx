@@ -1,13 +1,16 @@
 // frontend/src/main.jsx
-// This is the very first file React runs — it mounts your app into index.html
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'   // Global styles loaded here
+import './index.css'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    {/* ErrorBoundary wraps everything — any crash anywhere is caught here */}
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>
 )

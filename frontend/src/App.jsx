@@ -2,26 +2,30 @@
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
+import Footer from './components/Footer'
+import PageLoader from './components/PageLoader'
 import Home from './pages/Home'
 import Upload from './pages/Upload'
 import Gallery from './pages/Gallery'
+import NotFound from './pages/NotFound'
 
 export default function App() {
   return (
-    // BrowserRouter enables client-side navigation (no full page reloads)
     <BrowserRouter>
-      {/* Navbar is outside Routes so it appears on every page */}
+      <PageLoader />
       <Navbar />
 
-      {/* Routes renders whichever page matches the current URL */}
-      <Routes>
-        <Route path="/"        element={<Home />} />
-        <Route path="/upload"  element={<Upload />} />
-        <Route path="/gallery" element={<Gallery />} />
+      {/* min-height ensures footer is always pushed to the bottom */}
+      <div style={{ minHeight: 'calc(100vh - var(--nav-height))' }}>
+        <Routes>
+          <Route path="/"        element={<Home />} />
+          <Route path="/upload"  element={<Upload />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="*"        element={<NotFound />} />
+        </Routes>
+      </div>
 
-        {/* Catch-all: any unknown URL redirects to home */}
-        <Route path="*"        element={<Home />} />
-      </Routes>
+      <Footer />
     </BrowserRouter>
   )
 }
