@@ -1,75 +1,103 @@
-const pool = require('../config/db');
+// backend/src/controllers/imageController.js
 
-// POST /api/images — Upload a new image
+const pool = require('../config/db')
+
+// POST /api/images — upload a new image (unchanged)
 const uploadImage = async (req, res) => {
   try {
-    // Check that the image was processed successfully
     if (!req.processedFile) {
-      return res.status(400).json({ error: 'No image file provided' });
+      return res.status(400).json({ error: 'No image file provided' })
     }
+    const { address } = req.body
+    const { filename, url, width, height, size, originalName } = req.processedFile
 
-    // Get address from the request body (optional field)
-    const { address } = req.body;
-    const { filename, url, width, height, size, originalName } = req.processedFile;
-
-    // Save image metadata to the database
-    // $1, $2, etc. are placeholders — pg fills them in safely (prevents SQL injection)
     const result = await pool.query(
-      `INSERT INTO images 
+      `INSERT INTO images
         (original_filename, stored_filename, file_url, address, width, height, file_size)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [originalName, filename, url, address || null, width, height, size]
-    );
-
-    // Return the newly created image record
-    res.status(201).json({
-      message: 'Image uploaded successfully',
-      image: result.rows[0],
-    });
+    )
+    res.status(201).json({ message: 'Image uploaded successfully', image: result.rows[0] })
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image' });
+    console.error('Upload error:', error)
+    res.status(500).json({ error: 'Failed to upload image' })
   }
-};
+}
 
-// GET /api/images — Fetch all images for the gallery
+// GET /api/images — fetch images with pagination + optional location search
 const getAllImages = async (req, res) => {
   try {
-    // Fetch all images, newest first
-    const result = await pool.query(
-      'SELECT * FROM images ORDER BY created_at DESC'
-    );
+    // Read query parameters from the URL
+    // e.g. GET /api/images?page=2&limit=12&search=chittagong
+    const page   = Math.max(1, parseInt(req.query.page)  || 1)   // default page 1
+    const limit  = Math.min(48, parseInt(req.query.limit) || 12)  // default 12, max 48
+    const search = (req.query.search || '').trim()
 
-    res.status(200).json({
-      count: result.rows.length,
-      images: result.rows,
-    });
-  } catch (error) {
-    console.error('Fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch images' });
-  }
-};
+    // OFFSET = how many rows to skip
+    // page 1 → skip 0, page 2 → skip 12, page 3 → skip 24 ...
+    const offset = (page - 1) * limit
 
-// GET /api/images/:id — Fetch a single image by ID
-const getImageById = async (req, res) => {
-  try {
-    const { id } = req.params;
+    let countQuery, dataQuery, params
 
-    const result = await pool.query(
-      'SELECT * FROM images WHERE id = $1',
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Image not found' });
+    if (search) {
+      // ILIKE = case-insensitive LIKE in PostgreSQL
+      // %search% means "contains this text anywhere"
+      // $1 is the search value, $2 is limit, $3 is offset
+      countQuery = `SELECT COUNT(*) FROM images WHERE address ILIKE $1`
+      dataQuery  = `
+        SELECT * FROM images
+        WHERE address ILIKE $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+      `
+      params = [`%${search}%`, limit, offset]
+    } else {
+      countQuery = `SELECT COUNT(*) FROM images`
+      dataQuery  = `SELECT * FROM images ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+      params     = [limit, offset]
     }
 
-    res.status(200).json({ image: result.rows[0] });
-  } catch (error) {
-    console.error('Fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch image' });
-  }
-};
+    // Run both queries in parallel — faster than sequential
+    const [countResult, dataResult] = await Promise.all([
+      pool.query(countQuery, search ? [`%${search}%`] : []),
+      pool.query(dataQuery, params),
+    ])
 
-module.exports = { uploadImage, getAllImages, getImageById };
+    const totalImages = parseInt(countResult.rows[0].count)
+    const totalPages  = Math.ceil(totalImages / limit)
+
+    res.status(200).json({
+      images:      dataResult.rows,
+      pagination: {
+        currentPage:  page,
+        totalPages,
+        totalImages,
+        limit,
+        hasNextPage:  page < totalPages,
+        hasPrevPage:  page > 1,
+      },
+      search: search || null,
+    })
+  } catch (error) {
+    console.error('Fetch error:', error)
+    res.status(500).json({ error: 'Failed to fetch images' })
+  }
+}
+
+// GET /api/images/:id — fetch single image (unchanged)
+const getImageById = async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await pool.query('SELECT * FROM images WHERE id = $1', [id])
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Image not found' })
+    }
+    res.status(200).json({ image: result.rows[0] })
+  } catch (error) {
+    console.error('Fetch error:', error)
+    res.status(500).json({ error: 'Failed to fetch image' })
+  }
+}
+
+module.exports = { uploadImage, getAllImages, getImageById }

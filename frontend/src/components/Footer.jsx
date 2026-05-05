@@ -16,27 +16,18 @@ export default function Footer() {
         flexWrap: 'wrap',
         gap: 'var(--space-md)',
       }}>
-        {/* Brand */}
-        <span style={{
-          fontFamily: 'var(--font-head)',
-          fontWeight: 800,
-          fontSize: '18px',
-          letterSpacing: '-0.5px',
-        }}>
-          Pixel<span style={{ color: 'var(--accent)' }}>Vault</span>
+        <span style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '18px', letterSpacing: '-0.5px' }}>
+          Road<span style={{ color: 'var(--accent)' }}>Vault</span>
         </span>
 
-        {/* Links */}
         <div style={{ display: 'flex', gap: 'var(--space-lg)' }}>
           {[
-            { to: '/',        label: 'Home' },
-            { to: '/gallery', label: 'Gallery' },
-            { to: '/upload',  label: 'Contribute' },
+            { to: '/',        label: 'Home'      },
+            { to: '/gallery', label: 'Archive'   },
+            { to: '/upload',  label: 'Contribute'},
           ].map(link => (
             <Link key={link.to} to={link.to} style={{
-              fontSize: '14px',
-              color: 'var(--ink-muted)',
-              transition: 'color 0.2s',
+              fontSize: '14px', color: 'var(--ink-muted)', transition: 'color 0.2s',
             }}
             onMouseEnter={e => e.target.style.color = 'var(--ink)'}
             onMouseLeave={e => e.target.style.color = 'var(--ink-muted)'}
@@ -46,9 +37,8 @@ export default function Footer() {
           ))}
         </div>
 
-        {/* Copyright */}
         <span style={{ fontSize: '13px', color: 'var(--ink-muted)' }}>
-          © {new Date().getFullYear()} PixelVault
+          © {new Date().getFullYear()} RoadVault
         </span>
       </div>
     </footer>

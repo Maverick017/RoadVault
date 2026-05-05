@@ -2,35 +2,32 @@
 
 import axios from 'axios'
 
-// Create an axios instance with shared config
-// baseURL means every call automatically starts with /api
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000, // 30 seconds — image uploads can be slow
+  timeout: 30000,
 })
 
-// Upload a new image with address
-// FormData is how you send files over HTTP — like filling an HTML form
+// Upload image — unchanged
 export const uploadImage = async (imageFile, address) => {
   const formData = new FormData()
-  formData.append('image', imageFile)      // 'image' must match upload.single('image') in backend
+  formData.append('image', imageFile)
   formData.append('address', address || '')
-
   const response = await api.post('/images', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data', // Tell the server this is a file upload
-    },
+    headers: { 'Content-Type': 'multipart/form-data' },
   })
   return response.data
 }
 
-// Fetch all images for the gallery
-export const fetchImages = async () => {
-  const response = await api.get('/images')
+// Fetch images — now accepts page, limit, search
+// These become URL query params: /api/images?page=1&limit=12&search=dhaka
+export const fetchImages = async ({ page = 1, limit = 12, search = '' } = {}) => {
+  const params = { page, limit }
+  if (search) params.search = search
+  const response = await api.get('/images', { params })
   return response.data
 }
 
-// Fetch a single image by its ID
+// Fetch single image — unchanged
 export const fetchImageById = async (id) => {
   const response = await api.get(`/images/${id}`)
   return response.data

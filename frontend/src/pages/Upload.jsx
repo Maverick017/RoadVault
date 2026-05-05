@@ -7,56 +7,38 @@ import { uploadImage } from '../utils/api'
 
 export default function Upload() {
   const navigate = useNavigate()
+  const [file, setFile]           = useState(null)
+  const [preview, setPreview]     = useState(null)
+  const [address, setAddress]     = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [error, setError]         = useState(null)
+  const [success, setSuccess]     = useState(false)
 
-  // State variables — each piece of information the page needs to track
-  const [file, setFile]           = useState(null)      // The selected image file
-  const [preview, setPreview]     = useState(null)      // Preview URL for display
-  const [address, setAddress]     = useState('')         // Text typed in address field
-  const [uploading, setUploading] = useState(false)     // Is upload in progress?
-  const [error, setError]         = useState(null)      // Any error message
-  const [success, setSuccess]     = useState(false)     // Did upload succeed?
-
-  // useCallback prevents this function from being recreated on every render
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     setError(null)
-
     if (rejectedFiles.length > 0) {
-      setError('File rejected. Please use JPEG, PNG, WebP, or GIF under 10MB.')
+      setError('File rejected. Use JPEG, PNG, WebP, or GIF under 10MB.')
       return
     }
-
     const selected = acceptedFiles[0]
     setFile(selected)
-
-    // Create a temporary URL so we can show a preview immediately
-    // (This URL only exists in the browser — the file isn't uploaded yet)
-    const objectUrl = URL.createObjectURL(selected)
-    setPreview(objectUrl)
+    setPreview(URL.createObjectURL(selected))
   }, [])
 
-  // Configure react-dropzone
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.gif'] },
-    maxSize: 10 * 1024 * 1024, // 10MB
-    multiple: false,            // Only one file at a time
+    maxSize: 10 * 1024 * 1024,
+    multiple: false,
   })
 
   const handleSubmit = async () => {
-    if (!file) {
-      setError('Please select an image first.')
-      return
-    }
-
+    if (!file) { setError('Please select a road image first.'); return }
     try {
       setUploading(true)
       setError(null)
-
       await uploadImage(file, address)
-
       setSuccess(true)
-
-      // Wait 1.5 seconds then redirect to gallery
       setTimeout(() => navigate('/gallery'), 1500)
     } catch (err) {
       setError(err.response?.data?.error || 'Upload failed. Please try again.')
@@ -66,11 +48,8 @@ export default function Upload() {
   }
 
   const handleReset = () => {
-    setFile(null)
-    setPreview(null)
-    setAddress('')
-    setError(null)
-    setSuccess(false)
+    setFile(null); setPreview(null)
+    setAddress(''); setError(null); setSuccess(false)
   }
 
   return (
@@ -81,39 +60,53 @@ export default function Upload() {
     }}>
       <div className="container" style={{ maxWidth: '640px' }}>
 
-        {/* Page header */}
-        <div style={{ marginBottom: 'var(--space-2xl)' }}>
+        {/* Header */}
+        <div style={{ marginBottom: 'var(--space-xl)' }}>
           <h1 style={{
             fontFamily: 'var(--font-head)',
-            fontSize: 'clamp(36px, 6vw, 56px)',
+            fontSize: 'clamp(34px, 6vw, 52px)',
             fontWeight: 800,
             letterSpacing: '-2px',
             marginBottom: 'var(--space-sm)',
           }}>
-            Contribute a photo
+            Submit a road photo
           </h1>
-          <p style={{ color: 'var(--ink-muted)', fontSize: '16px' }}>
-            Drop your image below, add a location, and it goes straight into the archive.
+          <p style={{ color: 'var(--ink-muted)', fontSize: '16px', lineHeight: 1.6 }}>
+            Photos must show a road, street, highway, or pavement surface.
+            We do not accept off-topic images.
           </p>
         </div>
 
-        {/* Success state */}
+        {/* Road guideline banner */}
+        <div style={{
+          background: '#fffbeb',
+          border: '1px solid #fcd34d',
+          borderRadius: 'var(--radius-sm)',
+          padding: 'var(--space-md) var(--space-lg)',
+          marginBottom: 'var(--space-lg)',
+          fontSize: '14px',
+          color: '#92400e',
+          lineHeight: 1.6,
+        }}>
+          <strong>Submission guidelines:</strong> photograph the road surface from
+          ground level. Potholes, cracks, road markings, and surface textures
+          are all welcome. Keep the road as the main subject.
+        </div>
+
+        {/* Status messages */}
         {success && (
-          <div className="status-success" style={{ marginBottom: 'var(--space-lg)', fontSize: '16px' }}>
-            ✓ Photo uploaded successfully! Redirecting to gallery...
+          <div className="status-success" style={{ marginBottom: 'var(--space-lg)' }}>
+            ✓ Road photo submitted successfully! Redirecting to archive...
           </div>
         )}
-
-        {/* Error state */}
         {error && (
           <div className="status-error" style={{ marginBottom: 'var(--space-lg)' }}>
             {error}
           </div>
         )}
 
-        {/* ── Drop zone ── */}
+        {/* Drop zone */}
         {!preview ? (
-          // Show drop zone when no file is selected
           <div
             {...getRootProps()}
             style={{
@@ -126,14 +119,10 @@ export default function Upload() {
               transition: 'all 0.2s ease',
             }}
           >
-            {/* getRootProps and getInputProps wire up all the drag/drop events automatically */}
             <input {...getInputProps()} />
-
-            {/* Upload icon */}
             <div style={{ fontSize: '48px', marginBottom: 'var(--space-md)' }}>
-              {isDragActive ? '📂' : '🖼️'}
+              {isDragActive ? '📂' : '🛣️'}
             </div>
-
             <p style={{
               fontFamily: 'var(--font-head)',
               fontWeight: 700,
@@ -141,7 +130,7 @@ export default function Upload() {
               color: 'var(--ink)',
               marginBottom: 'var(--space-sm)',
             }}>
-              {isDragActive ? 'Drop it here!' : 'Drag & drop your photo'}
+              {isDragActive ? 'Drop your road photo here' : 'Drag & drop your road photo'}
             </p>
             <p style={{ color: 'var(--ink-muted)', fontSize: '14px', marginBottom: 'var(--space-lg)' }}>
               or click to browse your files
@@ -155,11 +144,10 @@ export default function Upload() {
               fontSize: '13px',
               color: 'var(--ink-muted)',
             }}>
-              JPEG, PNG, WebP, GIF · Max 10MB
+              JPEG · PNG · WebP · GIF &nbsp;·&nbsp; Max 10MB
             </div>
           </div>
         ) : (
-          // Show preview once file is selected
           <div style={{
             borderRadius: 'var(--radius-lg)',
             overflow: 'hidden',
@@ -169,20 +157,16 @@ export default function Upload() {
             <div style={{ position: 'relative' }}>
               <img
                 src={preview}
-                alt="Preview"
+                alt="Road preview"
                 style={{ width: '100%', maxHeight: '360px', objectFit: 'cover', display: 'block' }}
               />
-              {/* Remove button */}
               <button
                 onClick={handleReset}
                 style={{
                   position: 'absolute', top: 12, right: 12,
-                  background: 'rgba(15,14,13,0.7)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 32, height: 32,
-                  cursor: 'pointer',
+                  background: 'rgba(15,14,13,0.7)', color: '#fff',
+                  border: 'none', borderRadius: '50%',
+                  width: 32, height: 32, cursor: 'pointer',
                   fontSize: '16px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   backdropFilter: 'blur(4px)',
@@ -199,7 +183,7 @@ export default function Upload() {
           </div>
         )}
 
-        {/* ── Address input ── */}
+        {/* Address input */}
         <div style={{ marginTop: 'var(--space-lg)' }}>
           <label style={{
             display: 'block',
@@ -209,16 +193,16 @@ export default function Upload() {
             marginBottom: 'var(--space-sm)',
             color: 'var(--ink)',
           }}>
-            Location / Address
+            Road location / address
             <span style={{ color: 'var(--ink-muted)', fontWeight: 400, marginLeft: 6 }}>
-              (optional)
+              (optional but recommended)
             </span>
           </label>
           <input
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="e.g. Agrabad, Chattogram, Bangladesh"
+            placeholder="e.g. Strand Road, Chittagong — or just a city name"
             style={{
               width: '100%',
               padding: '14px var(--space-md)',
@@ -232,14 +216,14 @@ export default function Upload() {
               transition: 'border-color 0.2s',
             }}
             onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-            onBlur={e => e.target.style.borderColor = 'var(--paper-mid)'}
+            onBlur={e  => e.target.style.borderColor = 'var(--paper-mid)'}
           />
           <p style={{ fontSize: '12px', color: 'var(--ink-muted)', marginTop: 6 }}>
-            A city, neighborhood, or full address — whatever you know.
+            Road name, area, city, or country — any location detail helps.
           </p>
         </div>
 
-        {/* ── Submit button ── */}
+        {/* Submit */}
         <button
           onClick={handleSubmit}
           disabled={!file || uploading || success}
@@ -254,8 +238,18 @@ export default function Upload() {
             cursor: (!file || uploading || success) ? 'not-allowed' : 'pointer',
           }}
         >
-          {uploading ? 'Uploading...' : success ? 'Uploaded ✓' : 'Upload to archive →'}
+          {uploading ? 'Uploading...' : success ? 'Submitted ✓' : 'Submit to archive →'}
         </button>
+
+        <p style={{
+          textAlign: 'center',
+          fontSize: '12px',
+          color: 'var(--ink-muted)',
+          marginTop: 'var(--space-md)',
+        }}>
+          By submitting you confirm this is a road surface photograph
+          and you have the right to share it.
+        </p>
       </div>
     </main>
   )
