@@ -272,7 +272,7 @@ export default function Home() {
               {
                 n: '03',
                 title: 'Auto-standardized',
-                body: 'Your image is automatically resized to 1200px wide and converted to WebP. No editing needed.',
+                body: 'Your image is automatically resized to 600px wide and converted to WebP. No editing needed.',
               },
               {
                 n: '04',

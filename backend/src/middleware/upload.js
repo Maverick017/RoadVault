@@ -1,77 +1,73 @@
-const multer = require('multer');
-const sharp = require('sharp');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
+// backend/src/middleware/upload.js
 
-// Ensure the uploads directory exists
-const uploadDir = process.env.UPLOAD_PATH || './uploads';
+const multer  = require('multer')
+const sharp   = require('sharp')
+const path    = require('path')
+const { v4: uuidv4 } = require('uuid')
+const fs      = require('fs')
+
+// Ensure uploads directory exists
+const uploadDir = process.env.UPLOAD_PATH || './uploads'
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+  fs.mkdirSync(uploadDir, { recursive: true })
 }
 
-// Configure multer to store files in memory temporarily
-// (sharp will then process and save them to disk)
-const storage = multer.memoryStorage();
+// Store incoming file in memory — Sharp will handle writing to disk
+const storage = multer.memoryStorage()
 
-// File filter — only accept image files
+// Only accept image file types
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-  
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true); // Accept the file
+  const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+  if (allowed.includes(file.mimetype)) {
+    cb(null, true)
   } else {
-    cb(new Error('Only image files are allowed (JPEG, PNG, WebP, GIF)'), false);
+    cb(new Error('Only image files are allowed (JPEG, PNG, WebP, GIF)'), false)
   }
-};
+}
 
-// Create the multer instance
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage,
+  fileFilter,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB
   },
-});
+})
 
-// Sharp processing middleware — runs AFTER multer stores file in memory
-// This resizes the image and converts it to WebP format
+// Sharp processing middleware
+// Runs after multer places the file in memory (req.file.buffer)
 const processImage = async (req, res, next) => {
-  // If no file was uploaded, skip processing
-  if (!req.file) return next();
+  if (!req.file) return next()
 
   try {
-    // Generate a unique filename to prevent collisions
-    const uniqueFilename = `${uuidv4()}.webp`;
-    const outputPath = path.join(uploadDir, uniqueFilename);
+    const uniqueFilename = `${uuidv4()}.webp`
+    const outputPath     = path.join(uploadDir, uniqueFilename)
 
-    // Process the image with sharp:
-    // - resize to max 1200x800 (maintains aspect ratio, never upscales)
-    // - convert to WebP format (modern, smaller file size)
-    // - quality 85 (good balance of quality vs file size)
+    // cover — resizes so the image fully covers 600×600
+    //         then crops the excess from center outward
+    // This guarantees exactly 600×600 every time, no exceptions
+    // position 'centre' — keeps the most visually important part of the image
     const imageInfo = await sharp(req.file.buffer)
-      .resize(1200, 800, {
-        fit: 'inside',        // Maintain aspect ratio
-        withoutEnlargement: true, // Don't upscale small images
+      .resize(600, 600, {
+        fit:      'cover',   // fills the 600×600 box completely, crops overflow
+        position: 'centre',  // crop from the center of the image
       })
       .webp({ quality: 85 })
-      .toFile(outputPath);
+      .toFile(outputPath)
 
-    // Attach processed file info to the request for the controller to use
     req.processedFile = {
-      filename: uniqueFilename,
-      path: outputPath,
-      url: `/uploads/${uniqueFilename}`,
-      width: imageInfo.width,
-      height: imageInfo.height,
-      size: imageInfo.size,
+      filename:     uniqueFilename,
+      path:         outputPath,
+      url:          `/uploads/${uniqueFilename}`,
+      width:        imageInfo.width,   // will always be 600
+      height:       imageInfo.height,  // will always be 600
+      size:         imageInfo.size,
       originalName: req.file.originalname,
-    };
+    }
 
-    next(); // Move on to the controller
+    next()
   } catch (error) {
-    next(error); // Pass error to Express error handler
+    next(error)
   }
-};
+}
 
-module.exports = { upload, processImage };
+module.exports = { upload, processImage }
