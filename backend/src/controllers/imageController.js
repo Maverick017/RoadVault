@@ -2,15 +2,17 @@
 
 const pool = require('../config/db')
 
-// POST /api/images — upload a new image (unchanged)
+// POST /api/images
 const uploadImage = async (req, res) => {
   try {
     if (!req.processedFile) {
       return res.status(400).json({ error: 'No image file provided' })
     }
+
     const { address } = req.body
     const { filename, url, width, height, size, originalName } = req.processedFile
 
+    // url is now a full Cloudinary HTTPS URL, not a local path
     const result = await pool.query(
       `INSERT INTO images
         (original_filename, stored_filename, file_url, address, width, height, file_size)
@@ -18,32 +20,28 @@ const uploadImage = async (req, res) => {
        RETURNING *`,
       [originalName, filename, url, address || null, width, height, size]
     )
-    res.status(201).json({ message: 'Image uploaded successfully', image: result.rows[0] })
+
+    res.status(201).json({
+      message: 'Image uploaded successfully',
+      image:   result.rows[0],
+    })
   } catch (error) {
     console.error('Upload error:', error)
     res.status(500).json({ error: 'Failed to upload image' })
   }
 }
 
-// GET /api/images — fetch images with pagination + optional location search
+// GET /api/images — pagination + search (unchanged)
 const getAllImages = async (req, res) => {
   try {
-    // Read query parameters from the URL
-    // e.g. GET /api/images?page=2&limit=12&search=chittagong
-    const page   = Math.max(1, parseInt(req.query.page)  || 1)   // default page 1
-    const limit  = Math.min(48, parseInt(req.query.limit) || 12)  // default 12, max 48
+    const page   = Math.max(1, parseInt(req.query.page)  || 1)
+    const limit  = Math.min(48, parseInt(req.query.limit) || 12)
     const search = (req.query.search || '').trim()
-
-    // OFFSET = how many rows to skip
-    // page 1 → skip 0, page 2 → skip 12, page 3 → skip 24 ...
     const offset = (page - 1) * limit
 
     let countQuery, dataQuery, params
 
     if (search) {
-      // ILIKE = case-insensitive LIKE in PostgreSQL
-      // %search% means "contains this text anywhere"
-      // $1 is the search value, $2 is limit, $3 is offset
       countQuery = `SELECT COUNT(*) FROM images WHERE address ILIKE $1`
       dataQuery  = `
         SELECT * FROM images
@@ -58,7 +56,6 @@ const getAllImages = async (req, res) => {
       params     = [limit, offset]
     }
 
-    // Run both queries in parallel — faster than sequential
     const [countResult, dataResult] = await Promise.all([
       pool.query(countQuery, search ? [`%${search}%`] : []),
       pool.query(dataQuery, params),
@@ -68,14 +65,14 @@ const getAllImages = async (req, res) => {
     const totalPages  = Math.ceil(totalImages / limit)
 
     res.status(200).json({
-      images:      dataResult.rows,
+      images: dataResult.rows,
       pagination: {
-        currentPage:  page,
+        currentPage: page,
         totalPages,
         totalImages,
         limit,
-        hasNextPage:  page < totalPages,
-        hasPrevPage:  page > 1,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
       search: search || null,
     })
@@ -85,7 +82,7 @@ const getAllImages = async (req, res) => {
   }
 }
 
-// GET /api/images/:id — fetch single image (unchanged)
+// GET /api/images/:id
 const getImageById = async (req, res) => {
   try {
     const { id } = req.params
