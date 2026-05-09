@@ -202,7 +202,7 @@ export default function Upload() {
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="e.g. Strand Road, Chittagong — or just a city name"
+            placeholder="e.g. Foy's Lake, Chittagong — or just a city name"
             style={{
               width: '100%',
               padding: '14px var(--space-md)',

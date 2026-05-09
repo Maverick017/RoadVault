@@ -107,7 +107,7 @@ export default function Home() {
           {[
             { value: images.length || 0, label: 'Road photos archived' },
             { value: 'WebP',             label: 'Auto-converted format' },
-            { value: '1200px',           label: 'Standardized width'   },
+            { value: '600px',           label: 'Standardized width'   },
           ].map((stat) => (
             <div key={stat.label} style={{ textAlign: 'center' }}>
               <div style={{
