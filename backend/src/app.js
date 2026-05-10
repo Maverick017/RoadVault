@@ -20,11 +20,32 @@ app.use(helmet({
 // Development → allow localhost Vite dev server
 // Production  → allow only your Vercel frontend URL
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL
-    : ['http://localhost:5173', 'http://localhost:3000'],
-  methods:      ['GET', 'POST', 'DELETE'],
+  origin: (origin, callback) => {
+    // Allow server-to-server requests with no origin header
+    if (!origin) return callback(null, true)
+
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean)
+
+    // Log every origin attempt — visible in Render logs
+    console.log('CORS request from origin:', origin)
+    console.log('Allowed origins:', allowedOrigins)
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app')    // allows ALL vercel.app subdomains
+    ) {
+      callback(null, true)
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`))
+    }
+  },
+  methods:        ['GET', 'POST', 'DELETE'],
   allowedHeaders: ['Content-Type'],
+  credentials:    true,
 }))
 
 // --- Body parsing ---
