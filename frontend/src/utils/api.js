@@ -2,12 +2,17 @@
 
 import axios from 'axios'
 
+// Development: Vite proxy handles /api → localhost:5000
+// Production: requests go directly to Render backend
+const baseURL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   timeout: 30000,
 })
 
-// Upload image — unchanged
 export const uploadImage = async (imageFile, address) => {
   const formData = new FormData()
   formData.append('image', imageFile)
@@ -18,8 +23,6 @@ export const uploadImage = async (imageFile, address) => {
   return response.data
 }
 
-// Fetch images — now accepts page, limit, search
-// These become URL query params: /api/images?page=1&limit=12&search=dhaka
 export const fetchImages = async ({ page = 1, limit = 12, search = '' } = {}) => {
   const params = { page, limit }
   if (search) params.search = search
@@ -27,8 +30,18 @@ export const fetchImages = async ({ page = 1, limit = 12, search = '' } = {}) =>
   return response.data
 }
 
-// Fetch single image — unchanged
 export const fetchImageById = async (id) => {
   const response = await api.get(`/images/${id}`)
   return response.data
+}
+
+// Wakes up Render's free tier server on first page load
+// Render sleeps after 15 min of inactivity — this fires immediately
+// so the server is warm by the time the user clicks anything
+export const pingBackend = async () => {
+  try {
+    await api.get('/health')
+  } catch {
+    // silent — this is just a warm-up call
+  }
 }
