@@ -106,7 +106,7 @@ export default function Home() {
         }}>
           {[
             { value: images.length || 0, label: 'Road photos archived' },
-            { value: 'WebP',             label: 'Auto-converted format' },
+            
             { value: '600px',           label: 'Standardized width'   },
           ].map((stat) => (
             <div key={stat.label} style={{ textAlign: 'center' }}>
@@ -272,7 +272,7 @@ export default function Home() {
               {
                 n: '03',
                 title: 'Auto-standardized',
-                body: 'Your image is automatically resized to 600px wide and converted to WebP. No editing needed.',
+                body: 'Your image is automatically resized to 600px * 600px. No editing needed.',
               },
               {
                 n: '04',

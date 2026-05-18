@@ -1,18 +1,23 @@
 // backend/src/controllers/imageController.js
 
-const pool = require('../config/db')
+const pool       = require('../config/db')
+const cloudinary = require('cloudinary').v2
 
-// POST /api/images
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
+
+// POST /api/images — upload
 const uploadImage = async (req, res) => {
   try {
     if (!req.processedFile) {
       return res.status(400).json({ error: 'No image file provided' })
     }
-
     const { address } = req.body
     const { filename, url, width, height, size, originalName } = req.processedFile
 
-    // url is now a full Cloudinary HTTPS URL, not a local path
     const result = await pool.query(
       `INSERT INTO images
         (original_filename, stored_filename, file_url, address, width, height, file_size)
@@ -20,18 +25,14 @@ const uploadImage = async (req, res) => {
        RETURNING *`,
       [originalName, filename, url, address || null, width, height, size]
     )
-
-    res.status(201).json({
-      message: 'Image uploaded successfully',
-      image:   result.rows[0],
-    })
+    res.status(201).json({ message: 'Image uploaded successfully', image: result.rows[0] })
   } catch (error) {
     console.error('Upload error:', error)
     res.status(500).json({ error: 'Failed to upload image' })
   }
 }
 
-// GET /api/images — pagination + search (unchanged)
+// GET /api/images — fetch all with pagination + search
 const getAllImages = async (req, res) => {
   try {
     const page   = Math.max(1, parseInt(req.query.page)  || 1)
@@ -43,13 +44,8 @@ const getAllImages = async (req, res) => {
 
     if (search) {
       countQuery = `SELECT COUNT(*) FROM images WHERE address ILIKE $1`
-      dataQuery  = `
-        SELECT * FROM images
-        WHERE address ILIKE $1
-        ORDER BY created_at DESC
-        LIMIT $2 OFFSET $3
-      `
-      params = [`%${search}%`, limit, offset]
+      dataQuery  = `SELECT * FROM images WHERE address ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+      params     = [`%${search}%`, limit, offset]
     } else {
       countQuery = `SELECT COUNT(*) FROM images`
       dataQuery  = `SELECT * FROM images ORDER BY created_at DESC LIMIT $1 OFFSET $2`
@@ -67,10 +63,7 @@ const getAllImages = async (req, res) => {
     res.status(200).json({
       images: dataResult.rows,
       pagination: {
-        currentPage: page,
-        totalPages,
-        totalImages,
-        limit,
+        currentPage: page, totalPages, totalImages, limit,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1,
       },
@@ -82,7 +75,7 @@ const getAllImages = async (req, res) => {
   }
 }
 
-// GET /api/images/:id
+// GET /api/images/:id — fetch single
 const getImageById = async (req, res) => {
   try {
     const { id } = req.params
@@ -97,4 +90,53 @@ const getImageById = async (req, res) => {
   }
 }
 
-module.exports = { uploadImage, getAllImages, getImageById }
+// DELETE /api/images — delete one or multiple images
+// Body: { ids: ['uuid1', 'uuid2', ...] }
+const deleteImages = async (req, res) => {
+  try {
+    const { ids } = req.body
+
+    // Validate input
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Provide an array of image IDs to delete' })
+    }
+
+    // Fetch all matching rows from DB first
+    // $1, $2, $3... placeholders built dynamically for any number of IDs
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ')
+    const findResult   = await pool.query(
+      `SELECT id, stored_filename FROM images WHERE id IN (${placeholders})`,
+      ids
+    )
+
+    if (findResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No matching images found' })
+    }
+
+    const found = findResult.rows
+
+    // Delete all found images from Cloudinary in parallel
+    await Promise.all(
+      found.map(img =>
+        cloudinary.uploader.destroy(img.stored_filename, { resource_type: 'image' })
+          .catch(err => console.warn('Cloudinary delete warning:', err.message))
+      )
+    )
+
+    // Delete all rows from Neon in one query
+    const deleteResult = await pool.query(
+      `DELETE FROM images WHERE id IN (${placeholders}) RETURNING id`,
+      ids
+    )
+
+    res.status(200).json({
+      message: `${deleteResult.rows.length} image(s) deleted successfully`,
+      deleted: deleteResult.rows.map(r => r.id),
+    })
+  } catch (error) {
+    console.error('Delete error:', error)
+    res.status(500).json({ error: 'Failed to delete images' })
+  }
+}
+
+module.exports = { uploadImage, getAllImages, getImageById, deleteImages }

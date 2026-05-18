@@ -1,16 +1,13 @@
-const express = require('express');
-const router = express.Router();
-const { upload, processImage } = require('../middleware/upload');
-const { uploadImage, getAllImages, getImageById } = require('../controllers/imageController');
+// backend/src/routes/imageRoutes.js
 
-// POST /api/images
-// Middleware chain: upload (multer) → processImage (sharp) → uploadImage (save to DB)
-router.post('/', upload.single('image'), processImage, uploadImage);
+const express = require('express')
+const router  = express.Router()
+const { upload, processImage }                              = require('../middleware/upload')
+const { uploadImage, getAllImages, getImageById, deleteImages } = require('../controllers/imageController')
 
-// GET /api/images
-router.get('/', getAllImages);
+router.post('/',        upload.single('image'), processImage, uploadImage)
+router.get('/',         getAllImages)
+router.get('/:id',      getImageById)
+router.delete('/',      deleteImages)   // DELETE /api/images  body: { ids: [...] }
 
-// GET /api/images/:id
-router.get('/:id', getImageById);
-
-module.exports = router;
+module.exports = router

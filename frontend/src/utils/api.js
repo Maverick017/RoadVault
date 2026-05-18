@@ -2,16 +2,11 @@
 
 import axios from 'axios'
 
-// Development: Vite proxy handles /api → localhost:5000
-// Production: requests go directly to Render backend
 const baseURL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api'
 
-const api = axios.create({
-  baseURL,
-  timeout: 30000,
-})
+const api = axios.create({ baseURL, timeout: 30000 })
 
 export const uploadImage = async (imageFile, address) => {
   const formData = new FormData()
@@ -35,13 +30,13 @@ export const fetchImageById = async (id) => {
   return response.data
 }
 
-// Wakes up Render's free tier server on first page load
-// Render sleeps after 15 min of inactivity — this fires immediately
-// so the server is warm by the time the user clicks anything
+// Delete one or multiple images
+// ids is always an array e.g. ['uuid1'] or ['uuid1','uuid2','uuid3']
+export const deleteImages = async (ids) => {
+  const response = await api.delete('/images', { data: { ids } })
+  return response.data
+}
+
 export const pingBackend = async () => {
-  try {
-    await api.get('/health')
-  } catch {
-    // silent — this is just a warm-up call
-  }
+  try { await api.get('/health') } catch { /* silent */ }
 }
